@@ -3,3 +3,13 @@
 
 # Page Analyzer
 web page analysis application (Hexlet project)
+
+### Requirements:
+#### PHP >= 8.0
+#### Composer >= 2.5
+#### Make >= 4.3
+### Install:
+#### 1. `git clone git@github.com:mendax1337/php-project-9.git`
+#### 2. `cd php-project-9`
+#### 3. `make install`
+#### Результат [Ссылка на проект](https://page-analyzer-em5d.onrender.com/)
