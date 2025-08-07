@@ -24,9 +24,12 @@ if (file_exists(__DIR__ . '/../.env')) {
 
 // Получаем параметры подключения из массива $_ENV
 if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== false) {
-    // Render: парсим DATABASE_URL вида postgresql://user:pass@host:port/dbname
     $url = parse_url($_ENV['DATABASE_URL']);
-    $dsn = "pgsql:host={$url['host']};port={$url['port']};dbname=" . ltrim($url['path'], '/');
+    $dsn = "pgsql:host={$url['host']}";
+    if (isset($url['port'])) {
+        $dsn .= ";port={$url['port']}";
+    }
+    $dsn .= ";dbname=" . ltrim($url['path'], '/');
     $user = $url['user'];
     $password = $url['pass'];
 } else {
