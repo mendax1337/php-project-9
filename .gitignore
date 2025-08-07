@@ -8,3 +8,4 @@ logs
 *.cache
 build
 coverage.xml
+.env
