@@ -1,6 +1,6 @@
 <?php
 
-require __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use Slim\Factory\AppFactory;
 use Slim\Views\PhpRenderer;
@@ -10,6 +10,8 @@ use Carbon\Carbon;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use DiDom\Document;
+
+const URLS_PATH = '/urls';
 
 if (file_exists(__DIR__ . '/../.env')) {
     $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
@@ -32,7 +34,7 @@ if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== fal
 }
 
 if (!$dsn || !$user || !$password) {
-    throw new \RuntimeException('Database connection settings are not set in environment variables');
+    throw new \UnexpectedValueException('Database connection settings are not set in environment variables');
 }
 
 $pdo = new PDO($dsn, $user, $password, [
@@ -45,13 +47,13 @@ $renderer = new PhpRenderer(__DIR__ . '/../templates');
 session_start();
 $flash = new Messages();
 
-$app->get('/', function ($request, $response) use ($renderer, $flash) {
+$app->get('/', function ($response) use ($renderer, $flash) {
     return $renderer->render($response, 'main.phtml', [
         'flash' => $flash->getMessages(),
     ]);
 });
 
-$app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
+$app->post(URLS_PATH, function ($request, $response) use ($renderer, $pdo, $flash) {
     $data = $request->getParsedBody()['url'] ?? [];
     $name = trim($data['name'] ?? '');
 
@@ -90,7 +92,7 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
     if ($exists) {
         $flash->addMessage('success', 'Страница уже существует');
         return $response
-            ->withHeader('Location', "/urls/{$exists['id']}")
+            ->withHeader('Location', URLS_PATH . "/{$exists['id']}")
             ->withStatus(302);
     }
 
@@ -101,11 +103,11 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
 
     $flash->addMessage('success', 'Страница успешно добавлена');
     return $response
-        ->withHeader('Location', "/urls/{$id}")
+        ->withHeader('Location', URLS_PATH . "/{$id}")
         ->withStatus(302);
 });
 
-$app->get('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
+$app->get(URLS_PATH, function ($response) use ($renderer, $pdo, $flash) {
     $sql = <<<SQL
 SELECT
     urls.*,
@@ -132,7 +134,7 @@ SQL;
     ]);
 });
 
-$app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $pdo, $flash) {
+$app->get(URLS_PATH . '/{id}', function ($response, $args) use ($renderer, $pdo, $flash) {
     $id = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
     $stmt->execute([$id]);
@@ -154,53 +156,51 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
     ]);
 });
 
-$app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $flash) {
+$app->post(URLS_PATH . '/{id}/checks', function ($request, $response, $args) use ($pdo, $flash) {
     $urlId = (int) $args['id'];
+    $redirectUrl = URLS_PATH . "/{$urlId}";
     $stmt = $pdo->prepare('SELECT name FROM urls WHERE id = ?');
     $stmt->execute([$urlId]);
     $urlRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$urlRow) {
         $flash->addMessage('error', 'Сайт не найден');
-        return $response->withHeader('Location', "/urls")->withStatus(302);
+    } else {
+        $url = $urlRow['name'];
+        $now = (new Carbon())->toDateTimeString();
+
+        $client = new Client([
+            'timeout'  => 10.0,
+            'http_errors' => false,
+            'verify' => false,
+        ]);
+
+        try {
+            $resp = $client->request('GET', $url);
+            $statusCode = $resp->getStatusCode();
+            $body = (string) $resp->getBody();
+
+            $document = new Document($body);
+
+            $h1 = optional($document->first('h1'))->text();
+            $title = optional($document->first('title'))->text();
+            $description = optional($document->first('meta[name=description]'))->attr('content');
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$urlId, $statusCode, $h1, $title, $description, $now]);
+
+            $flash->addMessage('success', "Страница успешно проверена");
+        } catch (RequestException $e) {
+            $flash->addMessage('error', 'Ошибка проверки: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            $flash->addMessage('error', 'Ошибка: ' . $e->getMessage());
+        }
     }
 
-    $url = $urlRow['name'];
-    $now = (new Carbon())->toDateTimeString();
-
-    $client = new Client([
-        'timeout'  => 10.0,
-        'http_errors' => false,
-        'verify' => false,
-    ]);
-
-    try {
-        $resp = $client->request('GET', $url);
-        $statusCode = $resp->getStatusCode();
-        $body = (string) $resp->getBody();
-
-        $document = new Document($body);
-
-        $h1 = optional($document->first('h1'))->text();
-        $title = optional($document->first('title'))->text();
-        $description = optional($document->first('meta[name=description]'))->attr('content');
-
-        $stmt = $pdo->prepare(
-            'INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([$urlId, $statusCode, $h1, $title, $description, $now]);
-
-        $flash->addMessage('success', "Страница успешно проверена");
-    } catch (RequestException $e) {
-        $flash->addMessage('error', 'Ошибка проверки: ' . $e->getMessage());
-        return $response->withHeader('Location', "/urls/{$urlId}")->withStatus(302);
-    } catch (\Exception $e) {
-        $flash->addMessage('error', 'Ошибка: ' . $e->getMessage());
-        return $response->withHeader('Location', "/urls/{$urlId}")->withStatus(302);
-    }
-
-    return $response->withHeader('Location', "/urls/{$urlId}")->withStatus(302);
+    return $response->withHeader('Location', $redirectUrl)->withStatus(302);
 });
 
 $app->run();
