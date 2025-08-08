@@ -70,7 +70,7 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
     }
 
     if ($errors) {
-        $flash->addMessage('error', $errors[0] ?? 'Ошибка валидации');
+        $flash->addMessage('error', $errors[0]);
         $messages = $_SESSION['slimFlash'] ?? [];
         unset($_SESSION['slimFlash']);
         // Рендерим форму с ошибкой, адрес /urls, статус 422, форма как на главной
