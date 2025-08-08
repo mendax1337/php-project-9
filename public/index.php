@@ -139,4 +139,17 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
     ]);
 });
 
+// Обработчик добавления проверки (POST /urls/{url_id}/checks)
+$app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $renderer, $flash) {
+    $urlId = (int) $args['id'];
+    $now = (new Carbon())->toDateTimeString();
+    
+    $stmt = $pdo->prepare('INSERT INTO url_checks (url_id, created_at) VALUES (?, ?)');
+    $stmt->execute([$urlId, $now]);
+
+    $flash->addMessage('success', 'Проверка добавлена');
+    // После добавления — редиректим на страницу сайта
+    return $response->withHeader('Location', "/urls/{$urlId}")->withStatus(302);
+});
+
 $app->run();
