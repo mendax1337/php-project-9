@@ -63,8 +63,8 @@
         <thead>
         <tr>
             <th>ID</th>
-            <th>Дата проверки</th>
             <th>Код ответа</th>
+            <th>Дата проверки</th>
             <th>h1</th>
             <th>title</th>
             <th>description</th>
@@ -75,8 +75,8 @@
             <?php foreach ($checks as $check): ?>
                 <tr>
                     <td><?= $check['id'] ?></td>
-                    <td><?= $check['created_at'] ?></td>
                     <td><?= $check['status_code'] ?? '' ?></td>
+                    <td><?= $check['created_at'] ?></td>
                     <td><?= htmlspecialchars($check['h1'] ?? '') ?></td>
                     <td><?= htmlspecialchars($check['title'] ?? '') ?></td>
                     <td><?= htmlspecialchars($check['description'] ?? '') ?></td>
