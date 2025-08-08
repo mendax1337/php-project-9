@@ -11,11 +11,13 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use DiDom\Document;
 
+// Подключение .env
 if (file_exists(__DIR__ . '/../.env')) {
     $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
     $dotenv->load();
 }
 
+// Конфиг БД
 if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== false) {
     $url = parse_url($_ENV['DATABASE_URL']);
     $dsn = "pgsql:host={$url['host']}";
@@ -45,14 +47,14 @@ $renderer = new PhpRenderer(__DIR__ . '/../templates');
 session_start();
 $flash = new Messages();
 
+// Главная страница (форма)
 $app->get('/', function ($request, $response) use ($renderer, $flash) {
-    $messages = $_SESSION['slimFlash'] ?? [];
-    unset($_SESSION['slimFlash']);
     return $renderer->render($response, 'main.phtml', [
-        'flash' => $messages,
+        'flash' => $flash->getMessages(),
     ]);
 });
 
+// Обработка формы добавления сайта
 $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $data = $request->getParsedBody()['url'] ?? [];
     $name = trim($data['name'] ?? '');
@@ -66,19 +68,19 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         $errors[] = 'Некорректный URL';
     }
 
+    // Ошибка — показываем главную с ошибкой, НЕ редиректим
     if ($errors) {
-        $flash->addMessage('error', $errors[0]);
-        $messages = $_SESSION['slimFlash'] ?? [];
-        unset($_SESSION['slimFlash']);
         return $renderer->render($response->withStatus(422), 'main.phtml', [
             'url' => $name,
-            'flash' => $messages,
+            'flash' => ['error' => $errors],
         ]);
     }
 
+    // Нормализуем URL (только схема и хост)
     $parsed = parse_url($name);
     $normalized = "{$parsed['scheme']}://{$parsed['host']}";
 
+    // Проверяем — уже есть?
     $stmt = $pdo->prepare('SELECT id FROM urls WHERE name = ?');
     $stmt->execute([$normalized]);
     $exists = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -90,6 +92,7 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
             ->withStatus(302);
     }
 
+    // Добавляем новый
     $now = (new Carbon())->toDateTimeString();
     $stmt = $pdo->prepare('INSERT INTO urls (name, created_at) VALUES (?, ?) RETURNING id');
     $stmt->execute([$normalized, $now]);
@@ -101,6 +104,7 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         ->withStatus(302);
 });
 
+// Список сайтов
 $app->get('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $sql = <<<SQL
 SELECT
@@ -122,15 +126,13 @@ SQL;
     $stmt = $pdo->query($sql);
     $urls = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $messages = $_SESSION['slimFlash'] ?? [];
-    unset($_SESSION['slimFlash']);
-
     return $renderer->render($response, 'urls.phtml', [
         'urls' => $urls,
-        'flash' => $messages,
+        'flash' => $flash->getMessages(),
     ]);
 });
 
+// Карточка сайта
 $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $pdo, $flash) {
     $id = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
@@ -146,16 +148,14 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
     $stmt->execute([$id]);
     $checks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $messages = $_SESSION['slimFlash'] ?? [];
-    unset($_SESSION['slimFlash']);
-
     return $renderer->render($response, 'url.phtml', [
         'url' => $url,
         'checks' => $checks,
-        'flash' => $messages,
+        'flash' => $flash->getMessages(),
     ]);
 });
 
+// Проверка сайта
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $flash) {
     $urlId = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT name FROM urls WHERE id = ?');
