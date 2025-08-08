@@ -4,7 +4,7 @@ if (!function_exists('optional')) {
     function optional($value, $callback = null)
     {
         if (is_null($callback)) {
-            return new class($value)
+            return new class ($value)
             {
                 private $value;
 
