@@ -14,4 +14,4 @@ jobs:
       - name: Install dependencies
         run: composer install
       - name: Lint
-        run: vendor/bin/phpcs --standard=PSR12 public/
+        run: vendor/bin/phpcs --standard=PSR12 public/ src/
