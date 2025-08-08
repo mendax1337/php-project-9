@@ -24,9 +24,15 @@
 </nav>
 <main class="container">
 
+    <!-- Flash-сообщения -->
     <?php if (!empty($flash['success'])): ?>
         <?php foreach ($flash['success'] as $msg): ?>
             <div class="alert alert-success"><?= htmlspecialchars($msg) ?></div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+    <?php if (!empty($flash['error'])): ?>
+        <?php foreach ($flash['error'] as $msg): ?>
+            <div class="alert alert-danger"><?= htmlspecialchars($msg) ?></div>
         <?php endforeach; ?>
     <?php endif; ?>
 
@@ -58,6 +64,10 @@
         <tr>
             <th>ID</th>
             <th>Дата проверки</th>
+            <th>Код ответа</th>
+            <th>h1</th>
+            <th>title</th>
+            <th>description</th>
         </tr>
         </thead>
         <tbody>
@@ -66,11 +76,15 @@
                 <tr>
                     <td><?= $check['id'] ?></td>
                     <td><?= $check['created_at'] ?></td>
+                    <td><?= $check['status_code'] ?? '' ?></td>
+                    <td><?= htmlspecialchars($check['h1'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($check['title'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($check['description'] ?? '') ?></td>
                 </tr>
             <?php endforeach; ?>
         <?php else: ?>
             <tr>
-                <td colspan="2">Проверок пока нет</td>
+                <td colspan="6">Проверок пока нет</td>
             </tr>
         <?php endif; ?>
         </tbody>
