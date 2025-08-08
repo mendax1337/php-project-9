@@ -38,6 +38,36 @@
             <td><?= $url['created_at'] ?></td>
         </tr>
     </table>
+
+    <!-- Форма проверки -->
+    <form method="post" action="/urls/<?= $url['id'] ?>/checks" class="mb-4">
+        <button type="submit" class="btn btn-primary">Проверить</button>
+    </form>
+
+    <!-- Таблица проверок -->
+    <h2>Проверки</h2>
+    <table class="table" data-test="checks">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Дата проверки</th>
+        </tr>
+        </thead>
+        <tbody>
+        <?php if (!empty($checks)): ?>
+            <?php foreach ($checks as $check): ?>
+                <tr>
+                    <td><?= $check['id'] ?></td>
+                    <td><?= $check['created_at'] ?></td>
+                </tr>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <tr>
+                <td colspan="2">Проверок пока нет</td>
+            </tr>
+        <?php endif; ?>
+        </tbody>
+    </table>
 </main>
 </body>
 </html>
