@@ -209,7 +209,10 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo,
         }
 
         // Вставляем результат проверки
-        $stmt = $pdo->prepare('INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+        $stmt = $pdo->prepare(
+            'INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?)'
+        );
         $stmt->execute([$urlId, $statusCode, $h1, $title, $description, $now]);
 
         $flash->addMessage('success', "Проверка выполнена, код ответа: $statusCode");
