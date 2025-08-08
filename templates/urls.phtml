@@ -24,6 +24,14 @@
 </nav>
 <main class="container">
     <h1>Сайты</h1>
+
+    <?php if (!empty($flash['success'])): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($flash['success'][0]) ?></div>
+    <?php endif; ?>
+    <?php if (!empty($flash['error'])): ?>
+        <div class="alert alert-danger"><?= htmlspecialchars($flash['error'][0]) ?></div>
+    <?php endif; ?>
+
     <table class="table" data-test="urls">
         <thead>
         <tr>
