@@ -25,15 +25,11 @@
 <main class="container">
     <h1>Сайты</h1>
 
-    <?php if (!empty($flash['success'])): ?>
-        <?php foreach ($flash['success'] as $message): ?>
-            <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
-        <?php endforeach; ?>
-    <?php endif; ?>
     <?php if (!empty($flash['error'])): ?>
-        <?php foreach ($flash['error'] as $message): ?>
-            <div class="alert alert-danger"><?= htmlspecialchars($message) ?></div>
-        <?php endforeach; ?>
+        <div class="alert alert-danger"><?= htmlspecialchars($flash['error'][0]) ?></div>
+    <?php endif; ?>
+    <?php if (!empty($flash['success'])): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($flash['success'][0]) ?></div>
     <?php endif; ?>
 
     <table class="table" data-test="urls">

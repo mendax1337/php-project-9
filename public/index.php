@@ -65,10 +65,9 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
     }
 
     if ($errors) {
-        $message = $errors[0] ?? 'Ошибка валидации';
-        $flash->addMessage('error', $message);
+        $flash->addMessage('error', $errors[0] ?? 'Ошибка валидации');
 
-        // Нужно вернуть список сайтов, как на /urls
+        // Важно! Именно на /urls (а не обратно на /)
         $sql = <<<SQL
 SELECT
     urls.*,
