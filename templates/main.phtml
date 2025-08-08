@@ -22,30 +22,30 @@
         </div>
     </div>
 </nav>
-<main class="container" style="max-width: 600px;">
-    <div class="p-4 bg-light rounded-3 mb-4">
+<main class="container">
+    <div class="p-5 mb-4 bg-light rounded-3">
         <h1 class="display-4">Анализатор страниц</h1>
         <p class="lead">Бесплатно проверяйте сайты на SEO пригодность</p>
-        <form method="post" action="/urls" class="mt-4" data-test="url-form">
-            <div class="mb-3">
+        <form method="post" action="/urls" class="mb-3" data-test="url-form">
+            <div class="input-group">
                 <input
                         type="text"
                         required
                         name="url[name]"
                         value="<?= htmlspecialchars($url ?? '') ?>"
-                        class="form-control <?= !empty($flash['error']) ? 'is-invalid' : '' ?>"
+                        class="form-control<?= !empty($flash['error']) ? ' is-invalid' : '' ?>"
                         placeholder="https://example.com"
                         data-test="url-input"
                 >
-                <?php if (!empty($flash['error'])): ?>
-                    <div class="invalid-feedback d-block"><?= htmlspecialchars($flash['error'][0]) ?></div>
-                <?php endif; ?>
+                <button type="submit" class="btn btn-primary" data-test="submit">ПРОВЕРИТЬ</button>
             </div>
-            <button type="submit" class="btn btn-primary btn-lg" data-test="submit">ПРОВЕРИТЬ</button>
+            <?php if (!empty($flash['error'])): ?>
+                <div class="invalid-feedback d-block"><?= htmlspecialchars($flash['error'][0]) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($flash['success'])): ?>
+                <div class="valid-feedback d-block"><?= htmlspecialchars($flash['success'][0]) ?></div>
+            <?php endif; ?>
         </form>
-        <?php if (!empty($flash['success'])): ?>
-            <div class="alert alert-success mt-3"><?= htmlspecialchars($flash['success'][0]) ?></div>
-        <?php endif; ?>
     </div>
 </main>
 </body>
