@@ -5,7 +5,7 @@
 web page analysis application (Hexlet project)
 
 ### Requirements:
-#### PHP >= 8.0
+#### PHP >= 8.2
 #### Composer >= 2.5
 #### Make >= 4.3
 ### Install:
