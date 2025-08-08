@@ -11,13 +11,13 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use DiDom\Document;
 
-// Загрузка .env
+// env
 if (file_exists(__DIR__ . '/../.env')) {
     $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
     $dotenv->load();
 }
 
-// Подключение к базе
+// db
 if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== false) {
     $url = parse_url($_ENV['DATABASE_URL']);
     $dsn = "pgsql:host={$url['host']}";
@@ -39,22 +39,20 @@ $pdo = new PDO($dsn, $user, $password, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
 
-// Slim, Flash, Renderer
 session_start();
 $flash = new Messages();
 $app = AppFactory::create();
 $renderer = new PhpRenderer(__DIR__ . '/../templates');
 
-// Главная страница (форма)
+// Главная (форма)
 $app->get('/', function ($request, $response) use ($renderer, $flash) {
-    // flash->getMessages() всегда очищает сообщения после вызова!
     return $renderer->render($response, 'main.phtml', [
         'url' => '',
         'flash' => $flash->getMessages(),
     ]);
 });
 
-// Обработка формы (POST /urls)
+// Добавление сайта
 $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $data = $request->getParsedBody()['url'] ?? [];
     $name = trim($data['name'] ?? '');
@@ -70,7 +68,6 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
 
     if ($errors) {
         $flash->addMessage('error', $errors[0]);
-        // Нужно сразу забрать flash->getMessages(), иначе появится только при следующем запросе!
         return $renderer->render($response->withStatus(422), 'main.phtml', [
             'url' => $name,
             'flash' => $flash->getMessages(),
@@ -101,7 +98,7 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         ->withStatus(302);
 });
 
-// Список всех сайтов
+// Таблица сайтов
 $app->get('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $sql = <<<SQL
 SELECT
@@ -119,7 +116,6 @@ LEFT JOIN url_checks ON urls.id = url_checks.url_id
 GROUP BY urls.id
 ORDER BY urls.id DESC
 SQL;
-
     $stmt = $pdo->query($sql);
     $urls = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -152,7 +148,7 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
     ]);
 });
 
-// Проверка сайта (POST /urls/{id}/checks)
+// Проверка сайта
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $flash) {
     $urlId = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT name FROM urls WHERE id = ?');
