@@ -9,6 +9,7 @@ use Dotenv\Dotenv;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
+use DiDom\Document;
 
 // Загружаем .env для локальной разработки
 if (file_exists(__DIR__ . '/../.env')) {
@@ -109,15 +110,22 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
 // Список сайтов (GET /urls) с датой и статусом последней проверки
 $app->get('/urls', function ($request, $response) use ($renderer, $pdo) {
     $sql = <<<SQL
-SELECT 
-    urls.*, 
-    MAX(url_checks.created_at) AS last_check, 
-    MAX(url_checks.status_code) AS last_status_code
+SELECT
+    urls.*,
+    MAX(url_checks.created_at) AS last_check,
+    (
+        SELECT status_code
+        FROM url_checks
+        WHERE url_id = urls.id
+        ORDER BY created_at DESC
+        LIMIT 1
+    ) AS last_status_code
 FROM urls
 LEFT JOIN url_checks ON urls.id = url_checks.url_id
 GROUP BY urls.id
 ORDER BY urls.id DESC
 SQL;
+
     $stmt = $pdo->query($sql);
     $urls = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -150,7 +158,7 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
     ]);
 });
 
-// Обработчик добавления проверки (POST /urls/{url_id}/checks) с реальной проверкой
+// Обработчик добавления проверки (POST /urls/{url_id}/checks) с реальной проверкой и SEO-анализом через DiDom
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $renderer, $flash) {
     $urlId = (int) $args['id'];
 
@@ -178,40 +186,18 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo,
         $statusCode = $resp->getStatusCode();
         $body = (string) $resp->getBody();
 
-        // Парсим HTML
-        $doc = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $doc->loadHTML($body);
-        libxml_clear_errors();
+        // Парсим HTML через DiDom
+        $document = new Document($body);
 
-        // h1
-        $h1 = '';
-        $h1Elements = $doc->getElementsByTagName('h1');
-        if ($h1Elements->length > 0) {
-            $h1 = $h1Elements->item(0)->textContent;
-        }
-
-        // title
-        $title = '';
-        $titleElements = $doc->getElementsByTagName('title');
-        if ($titleElements->length > 0) {
-            $title = $titleElements->item(0)->textContent;
-        }
-
-        // description
-        $description = '';
-        $metaElements = $doc->getElementsByTagName('meta');
-        foreach ($metaElements as $meta) {
-            if (strtolower($meta->getAttribute('name')) === 'description') {
-                $description = $meta->getAttribute('content');
-                break;
-            }
-        }
+        // Используем optional() для надёжности (хелпер src/helpers.php)
+        $h1 = optional($document->first('h1'))->text();
+        $title = optional($document->first('title'))->text();
+        $description = optional($document->first('meta[name=description]'))->attr('content');
 
         // Вставляем результат проверки
         $stmt = $pdo->prepare(
             'INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([$urlId, $statusCode, $h1, $title, $description, $now]);
 
