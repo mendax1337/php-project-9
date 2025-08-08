@@ -68,7 +68,7 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         $message = $errors[0] ?? 'Ошибка валидации';
         $flash->addMessage('error', $message);
 
-        // Подгружаем список сайтов для urls.phtml
+        // Нужно вернуть список сайтов, как на /urls
         $sql = <<<SQL
 SELECT
     urls.*,
@@ -87,7 +87,6 @@ ORDER BY urls.id DESC
 SQL;
         $stmt = $pdo->query($sql);
         $urls = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         return $renderer
             ->render($response->withStatus(422), 'urls.phtml', [
                 'urls' => $urls,
