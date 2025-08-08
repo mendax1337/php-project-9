@@ -66,32 +66,12 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
 
     if ($errors) {
         $flash->addMessage('error', $errors[0] ?? 'Ошибка валидации');
-
-        // Важно! Именно на /urls (а не обратно на /)
-        $sql = <<<SQL
-SELECT
-    urls.*,
-    MAX(url_checks.created_at) AS last_check,
-    (
-        SELECT status_code
-        FROM url_checks
-        WHERE url_id = urls.id
-        ORDER BY created_at DESC
-        LIMIT 1
-    ) AS last_status_code
-FROM urls
-LEFT JOIN url_checks ON urls.id = url_checks.url_id
-GROUP BY urls.id
-ORDER BY urls.id DESC
-SQL;
-        $stmt = $pdo->query($sql);
-        $urls = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        return $renderer
-            ->render($response->withStatus(422), 'urls.phtml', [
-                'urls' => $urls,
-                'url' => $name,
-                'flash' => $flash->getMessages(),
-            ]);
+        $messages = $_SESSION['slimFlash'] ?? [];
+        unset($_SESSION['slimFlash']);
+        return $renderer->render($response->withStatus(422), 'main.phtml', [
+            'url' => $name,
+            'flash' => $messages,
+        ]);
     }
 
     $parsed = parse_url($name);

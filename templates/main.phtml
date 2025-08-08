@@ -22,33 +22,31 @@
         </div>
     </div>
 </nav>
-<main class="container">
-    <h1 class="mb-4">Анализатор страниц</h1>
-    <p class="lead">Бесплатно проверяйте сайты на SEO ошибки</p>
-
-    <?php if (!empty($flash['success'])): ?>
-        <?php foreach ($flash['success'] as $msg): ?>
-            <div class="alert alert-success"><?= htmlspecialchars($msg) ?></div>
-        <?php endforeach; ?>
-    <?php endif; ?>
-    <?php if (!empty($flash['error'])): ?>
-        <?php foreach ($flash['error'] as $msg): ?>
-            <div class="alert alert-danger"><?= htmlspecialchars($msg) ?></div>
-        <?php endforeach; ?>
-    <?php endif; ?>
-
-    <form action="/urls" method="post" class="row g-2 mb-3">
-        <div class="col-auto flex-grow-1">
-            <input type="text"
-                   name="url[name]"
-                   class="form-control"
-                   placeholder="https://www.example.com"
-                   value="<?= isset($url) ? htmlspecialchars($url) : '' ?>">
-        </div>
-        <div class="col-auto">
-            <input type="submit" class="btn btn-primary" value="Проверить">
-        </div>
-    </form>
+<main class="container" style="max-width: 600px;">
+    <div class="p-4 bg-light rounded-3 mb-4">
+        <h1 class="display-4">Анализатор страниц</h1>
+        <p class="lead">Бесплатно проверяйте сайты на SEO пригодность</p>
+        <form method="post" action="/urls" class="mt-4" data-test="url-form">
+            <div class="mb-3">
+                <input
+                        type="text"
+                        required
+                        name="url[name]"
+                        value="<?= htmlspecialchars($url ?? '') ?>"
+                        class="form-control <?= !empty($flash['error']) ? 'is-invalid' : '' ?>"
+                        placeholder="https://example.com"
+                        data-test="url-input"
+                >
+                <?php if (!empty($flash['error'])): ?>
+                    <div class="invalid-feedback d-block"><?= htmlspecialchars($flash['error'][0]) ?></div>
+                <?php endif; ?>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg" data-test="submit">ПРОВЕРИТЬ</button>
+        </form>
+        <?php if (!empty($flash['success'])): ?>
+            <div class="alert alert-success mt-3"><?= htmlspecialchars($flash['success'][0]) ?></div>
+        <?php endif; ?>
+    </div>
 </main>
 </body>
 </html>

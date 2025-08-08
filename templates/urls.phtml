@@ -25,35 +25,13 @@
 <main class="container">
     <h1>Сайты</h1>
 
-    <!-- Флэш-сообщения -->
     <?php if (!empty($flash['success'])): ?>
-        <?php foreach ($flash['success'] as $message): ?>
-            <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
-        <?php endforeach; ?>
+        <div class="alert alert-success"><?= htmlspecialchars($flash['success'][0]) ?></div>
     <?php endif; ?>
     <?php if (!empty($flash['error'])): ?>
-        <?php foreach ($flash['error'] as $message): ?>
-            <div class="alert alert-danger"><?= htmlspecialchars($message) ?></div>
-        <?php endforeach; ?>
+        <div class="alert alert-danger"><?= htmlspecialchars($flash['error'][0]) ?></div>
     <?php endif; ?>
 
-    <!-- Форма добавления сайта -->
-    <form method="post" action="/urls" class="mb-4" data-test="url-form">
-        <div class="input-group">
-            <input
-                    type="text"
-                    required
-                    name="url[name]"
-                    value="<?= htmlspecialchars($url ?? '') ?>"
-                    class="form-control"
-                    placeholder="https://example.com"
-                    data-test="url-input"
-            >
-            <button type="submit" class="btn btn-primary" data-test="submit">Добавить</button>
-        </div>
-    </form>
-
-    <!-- Таблица сайтов -->
     <table class="table" data-test="urls">
         <thead>
         <tr>
