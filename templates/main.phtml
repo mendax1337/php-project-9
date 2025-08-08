@@ -37,7 +37,7 @@
                         placeholder="https://example.com"
                         data-test="url-input"
                 >
-                <button type="submit" class="btn btn-primary" data-test="submit">ПРОВЕРИТЬ</button>
+                <input type="submit" class="btn btn-primary" data-test="submit" value="ПРОВЕРИТЬ">
             </div>
             <?php if (!empty($flash['error'])): ?>
                 <div class="invalid-feedback d-block"><?= htmlspecialchars($flash['error'][0]) ?></div>
