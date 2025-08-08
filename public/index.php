@@ -162,47 +162,48 @@ $app->post(URLS_PATH . '/{id}/checks', function ($request, $response, $args) use
     $stmt->execute([$urlId]);
     $urlRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$urlRow) {
+    $redirectUrl = URLS_PATH;
+    if ($urlRow) {
+        $url = $urlRow['name'];
+        $now = (new Carbon())->toDateTimeString();
+
+        $client = new Client([
+            'timeout'  => 10.0,
+            'http_errors' => false,
+            'verify' => false,
+        ]);
+
+        try {
+            $resp = $client->request('GET', $url);
+            $statusCode = $resp->getStatusCode();
+            $body = (string) $resp->getBody();
+
+            $document = new Document($body);
+
+            $h1 = optional($document->first('h1'))->text();
+            $title = optional($document->first('title'))->text();
+            $description = optional($document->first('meta[name=description]'))->attr('content');
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$urlId, $statusCode, $h1, $title, $description, $now]);
+
+            $flash->addMessage('success', "Страница успешно проверена");
+            $redirectUrl .= "/{$urlId}";
+        } catch (RequestException $e) {
+            $flash->addMessage('error', 'Ошибка проверки: ' . $e->getMessage());
+            $redirectUrl .= "/{$urlId}";
+        } catch (\Exception $e) {
+            $flash->addMessage('error', 'Ошибка: ' . $e->getMessage());
+            $redirectUrl .= "/{$urlId}";
+        }
+    } else {
         $flash->addMessage('error', 'Сайт не найден');
-        return $response->withHeader('Location', URLS_PATH)->withStatus(302);
     }
 
-    $url = $urlRow['name'];
-    $now = (new Carbon())->toDateTimeString();
-
-    $client = new Client([
-        'timeout'  => 10.0,
-        'http_errors' => false,
-        'verify' => false,
-    ]);
-
-    try {
-        $resp = $client->request('GET', $url);
-        $statusCode = $resp->getStatusCode();
-        $body = (string) $resp->getBody();
-
-        $document = new Document($body);
-
-        $h1 = optional($document->first('h1'))->text();
-        $title = optional($document->first('title'))->text();
-        $description = optional($document->first('meta[name=description]'))->attr('content');
-
-        $stmt = $pdo->prepare(
-            'INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([$urlId, $statusCode, $h1, $title, $description, $now]);
-
-        $flash->addMessage('success', "Страница успешно проверена");
-    } catch (RequestException $e) {
-        $flash->addMessage('error', 'Ошибка проверки: ' . $e->getMessage());
-        return $response->withHeader('Location', URLS_PATH . "/{$urlId}")->withStatus(302);
-    } catch (\Exception $e) {
-        $flash->addMessage('error', 'Ошибка: ' . $e->getMessage());
-        return $response->withHeader('Location', URLS_PATH . "/{$urlId}")->withStatus(302);
-    }
-
-    return $response->withHeader('Location', URLS_PATH . "/{$urlId}")->withStatus(302);
+    return $response->withHeader('Location', $redirectUrl)->withStatus(302);
 });
 
 $app->run();
