@@ -11,13 +11,11 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use DiDom\Document;
 
-// Загружаем .env для локальной разработки
 if (file_exists(__DIR__ . '/../.env')) {
     $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
     $dotenv->load();
 }
 
-// Получаем параметры подключения из массива $_ENV
 if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== false) {
     $url = parse_url($_ENV['DATABASE_URL']);
     $dsn = "pgsql:host={$url['host']}";
@@ -28,7 +26,6 @@ if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== fal
     $user = $url['user'];
     $password = $url['pass'];
 } else {
-    // Локальная разработка
     $dsn = $_ENV['DATABASE_URL'] ?? null;
     $user = $_ENV['DB_USER'] ?? null;
     $password = $_ENV['DB_PASSWORD'] ?? null;
@@ -48,19 +45,16 @@ $renderer = new PhpRenderer(__DIR__ . '/../templates');
 session_start();
 $flash = new Messages();
 
-// Главная страница (GET /)
 $app->get('/', function ($request, $response) use ($renderer, $flash) {
     return $renderer->render($response, 'main.phtml', [
-        'flash' => $_SESSION['slimFlash'] ?? [],
+        'flash' => $flash->getMessages(),
     ]);
 });
 
-// Обработчик добавления URL (POST /urls)
 $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $data = $request->getParsedBody()['url'] ?? [];
     $name = trim($data['name'] ?? '');
 
-    // Валидация
     $errors = [];
     if (empty($name)) {
         $errors[] = 'URL не должен быть пустым';
@@ -75,15 +69,13 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         $flash->addMessage('error', $message);
         return $renderer->render($response, 'main.phtml', [
             'url' => $name,
-            'flash' => $_SESSION['slimFlash'] ?? [],
+            'flash' => $flash->getMessages(),
         ]);
     }
 
-    // Нормализация: scheme + host
     $parsed = parse_url($name);
     $normalized = "{$parsed['scheme']}://{$parsed['host']}";
 
-    // Проверка на уникальность
     $stmt = $pdo->prepare('SELECT id FROM urls WHERE name = ?');
     $stmt->execute([$normalized]);
     $exists = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -95,7 +87,6 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
             ->withStatus(302);
     }
 
-    // Добавляем сайт в БД
     $now = (new Carbon())->toDateTimeString();
     $stmt = $pdo->prepare('INSERT INTO urls (name, created_at) VALUES (?, ?) RETURNING id');
     $stmt->execute([$normalized, $now]);
@@ -107,8 +98,7 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         ->withStatus(302);
 });
 
-// Список сайтов (GET /urls) с датой и статусом последней проверки
-$app->get('/urls', function ($request, $response) use ($renderer, $pdo) {
+$app->get('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $sql = <<<SQL
 SELECT
     urls.*,
@@ -131,10 +121,10 @@ SQL;
 
     return $renderer->render($response, 'urls.phtml', [
         'urls' => $urls,
+        'flash' => $flash->getMessages(),
     ]);
 });
 
-// Страница одного сайта (GET /urls/{id})
 $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $pdo, $flash) {
     $id = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
@@ -146,7 +136,6 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
         return $response->withStatus(404);
     }
 
-    // Получаем проверки для сайта
     $stmt = $pdo->prepare('SELECT * FROM url_checks WHERE url_id = ? ORDER BY id DESC');
     $stmt->execute([$id]);
     $checks = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -154,15 +143,12 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
     return $renderer->render($response, 'url.phtml', [
         'url' => $url,
         'checks' => $checks,
-        'flash' => $_SESSION['slimFlash'] ?? [],
+        'flash' => $flash->getMessages(),
     ]);
 });
 
-// Обработчик добавления проверки (POST /urls/{url_id}/checks) с реальной проверкой и SEO-анализом через DiDom
-$app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $renderer, $flash) {
+$app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $flash) {
     $urlId = (int) $args['id'];
-
-    // Получаем URL из базы
     $stmt = $pdo->prepare('SELECT name FROM urls WHERE id = ?');
     $stmt->execute([$urlId]);
     $urlRow = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -178,7 +164,7 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo,
     $client = new Client([
         'timeout'  => 10.0,
         'http_errors' => false,
-        'verify' => false, // не ругаемся на ssl-сертификаты
+        'verify' => false,
     ]);
 
     try {
@@ -186,22 +172,19 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo,
         $statusCode = $resp->getStatusCode();
         $body = (string) $resp->getBody();
 
-        // Парсим HTML через DiDom
         $document = new Document($body);
 
-        // Используем optional() для надёжности (хелпер src/helpers.php)
         $h1 = optional($document->first('h1'))->text();
         $title = optional($document->first('title'))->text();
         $description = optional($document->first('meta[name=description]'))->attr('content');
 
-        // Вставляем результат проверки
         $stmt = $pdo->prepare(
             'INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) 
              VALUES (?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([$urlId, $statusCode, $h1, $title, $description, $now]);
 
-        $flash->addMessage('success', "Проверка выполнена, код ответа: $statusCode");
+        $flash->addMessage('success', "Страница успешно проверена");
     } catch (RequestException $e) {
         $flash->addMessage('error', 'Ошибка проверки: ' . $e->getMessage());
         return $response->withHeader('Location', "/urls/{$urlId}")->withStatus(302);
