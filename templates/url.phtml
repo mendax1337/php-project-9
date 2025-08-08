@@ -24,7 +24,6 @@
 </nav>
 <main class="container">
 
-    <!-- Flash-сообщения -->
     <?php if (!empty($flash['success'])): ?>
         <?php foreach ($flash['success'] as $msg): ?>
             <div class="alert alert-success"><?= htmlspecialchars($msg) ?></div>
@@ -52,22 +51,20 @@
         </tr>
     </table>
 
-    <!-- Форма проверки -->
     <form method="post" action="/urls/<?= $url['id'] ?>/checks" class="mb-4">
         <button type="submit" class="btn btn-primary">Запустить проверку</button>
     </form>
 
-    <!-- Таблица проверок -->
     <h2>Проверки</h2>
     <table class="table" data-test="checks">
         <thead>
         <tr>
             <th>ID</th>
             <th>Код ответа</th>
-            <th>Дата проверки</th>
             <th>h1</th>
             <th>title</th>
             <th>description</th>
+            <th>Дата проверки</th>
         </tr>
         </thead>
         <tbody>
@@ -76,10 +73,10 @@
                 <tr>
                     <td><?= $check['id'] ?></td>
                     <td><?= $check['status_code'] ?? '' ?></td>
-                    <td><?= $check['created_at'] ?></td>
                     <td><?= htmlspecialchars($check['h1'] ?? '') ?></td>
                     <td><?= htmlspecialchars($check['title'] ?? '') ?></td>
                     <td><?= htmlspecialchars($check['description'] ?? '') ?></td>
+                    <td><?= $check['created_at'] ?></td>
                 </tr>
             <?php endforeach; ?>
         <?php else: ?>
