@@ -42,6 +42,9 @@
             <?php if (!empty($flash['error'])): ?>
                 <div class="invalid-feedback d-block"><?= htmlspecialchars($flash['error'][0]) ?></div>
             <?php endif; ?>
+            <?php if (!empty($flash['success'])): ?>
+                <div class="valid-feedback d-block"><?= htmlspecialchars($flash['success'][0]) ?></div>
+            <?php endif; ?>
         </form>
     </div>
 </main>
