@@ -23,6 +23,13 @@
     </div>
 </nav>
 <main class="container">
+
+    <?php if (!empty($flash['success'])): ?>
+        <?php foreach ($flash['success'] as $msg): ?>
+            <div class="alert alert-success"><?= htmlspecialchars($msg) ?></div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
     <h1>Сайт: <?= htmlspecialchars($url['name']) ?></h1>
     <table class="table" data-test="url">
         <tr>

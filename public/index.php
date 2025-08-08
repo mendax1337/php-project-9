@@ -104,10 +104,19 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         ->withStatus(302);
 });
 
-// Список сайтов (GET /urls)
+// Список сайтов (GET /urls) — теперь с last_check
 $app->get('/urls', function ($request, $response) use ($renderer, $pdo) {
     $stmt = $pdo->query('SELECT * FROM urls ORDER BY id DESC');
     $urls = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Для каждого сайта ищем дату последней проверки
+    foreach ($urls as &$url) {
+        $stmtCheck = $pdo->prepare('SELECT created_at FROM url_checks WHERE url_id = ? ORDER BY id DESC LIMIT 1');
+        $stmtCheck->execute([$url['id']]);
+        $lastCheck = $stmtCheck->fetchColumn();
+        $url['last_check'] = $lastCheck ?: null;
+    }
+    unset($url);
 
     return $renderer->render($response, 'urls.phtml', [
         'urls' => $urls,
