@@ -14,14 +14,6 @@ if (file_exists(__DIR__ . '/../.env')) {
     $dotenv->load();
 }
 
-// Проверяем, что .env файл подхватывается — отладка
-// var_dump(__DIR__ . '/../.env');
-// var_dump(file_exists(__DIR__ . '/../.env'));
-// var_dump($_ENV['DATABASE_URL'] ?? null);
-// var_dump($_ENV['DB_USER'] ?? null);
-// var_dump($_ENV['DB_PASSWORD'] ?? null);
-// exit;
-
 // Получаем параметры подключения из массива $_ENV
 if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== false) {
     $url = parse_url($_ENV['DATABASE_URL']);
@@ -123,7 +115,7 @@ $app->get('/urls', function ($request, $response) use ($renderer, $pdo) {
 });
 
 // Страница одного сайта (GET /urls/{id})
-$app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $pdo) {
+$app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $pdo, $flash) {
     $id = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
     $stmt->execute([$id]);
@@ -134,8 +126,15 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
         return $response->withStatus(404);
     }
 
+    // Получаем проверки для сайта
+    $stmt = $pdo->prepare('SELECT * FROM url_checks WHERE url_id = ? ORDER BY id DESC');
+    $stmt->execute([$id]);
+    $checks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     return $renderer->render($response, 'url.phtml', [
         'url' => $url,
+        'checks' => $checks,
+        'flash' => $_SESSION['slimFlash'] ?? [],
     ]);
 });
 
@@ -143,7 +142,7 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $renderer, $flash) {
     $urlId = (int) $args['id'];
     $now = (new Carbon())->toDateTimeString();
-    
+
     $stmt = $pdo->prepare('INSERT INTO url_checks (url_id, created_at) VALUES (?, ?)');
     $stmt->execute([$urlId, $now]);
 
