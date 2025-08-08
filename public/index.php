@@ -11,13 +11,11 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use DiDom\Document;
 
-// env
 if (file_exists(__DIR__ . '/../.env')) {
     $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
     $dotenv->load();
 }
 
-// db
 if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== false) {
     $url = parse_url($_ENV['DATABASE_URL']);
     $dsn = "pgsql:host={$url['host']}";
@@ -32,27 +30,29 @@ if (isset($_ENV['DATABASE_URL']) && strpos($_ENV['DATABASE_URL'], '://') !== fal
     $user = $_ENV['DB_USER'] ?? null;
     $password = $_ENV['DB_PASSWORD'] ?? null;
 }
+
 if (!$dsn || !$user || !$password) {
     throw new \RuntimeException('Database connection settings are not set in environment variables');
 }
+
 $pdo = new PDO($dsn, $user, $password, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
 
-session_start();
-$flash = new Messages();
 $app = AppFactory::create();
 $renderer = new PhpRenderer(__DIR__ . '/../templates');
 
-// Главная (форма)
+session_start();
+$flash = new Messages();
+
 $app->get('/', function ($request, $response) use ($renderer, $flash) {
+    $messages = $_SESSION['slimFlash'] ?? [];
+    unset($_SESSION['slimFlash']);
     return $renderer->render($response, 'main.phtml', [
-        'url' => '',
-        'flash' => $flash->getMessages(),
+        'flash' => $messages,
     ]);
 });
 
-// Добавление сайта
 $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $data = $request->getParsedBody()['url'] ?? [];
     $name = trim($data['name'] ?? '');
@@ -68,14 +68,17 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
 
     if ($errors) {
         $flash->addMessage('error', $errors[0]);
+        $messages = $_SESSION['slimFlash'] ?? [];
+        unset($_SESSION['slimFlash']);
         return $renderer->render($response->withStatus(422), 'main.phtml', [
             'url' => $name,
-            'flash' => $flash->getMessages(),
+            'flash' => $messages,
         ]);
     }
 
     $parsed = parse_url($name);
     $normalized = "{$parsed['scheme']}://{$parsed['host']}";
+
     $stmt = $pdo->prepare('SELECT id FROM urls WHERE name = ?');
     $stmt->execute([$normalized]);
     $exists = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -98,7 +101,6 @@ $app->post('/urls', function ($request, $response) use ($renderer, $pdo, $flash)
         ->withStatus(302);
 });
 
-// Таблица сайтов
 $app->get('/urls', function ($request, $response) use ($renderer, $pdo, $flash) {
     $sql = <<<SQL
 SELECT
@@ -116,16 +118,19 @@ LEFT JOIN url_checks ON urls.id = url_checks.url_id
 GROUP BY urls.id
 ORDER BY urls.id DESC
 SQL;
+
     $stmt = $pdo->query($sql);
     $urls = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $messages = $_SESSION['slimFlash'] ?? [];
+    unset($_SESSION['slimFlash']);
+
     return $renderer->render($response, 'urls.phtml', [
         'urls' => $urls,
-        'flash' => $flash->getMessages(),
+        'flash' => $messages,
     ]);
 });
 
-// Страница конкретного сайта
 $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $pdo, $flash) {
     $id = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
@@ -141,14 +146,16 @@ $app->get('/urls/{id}', function ($request, $response, $args) use ($renderer, $p
     $stmt->execute([$id]);
     $checks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $messages = $_SESSION['slimFlash'] ?? [];
+    unset($_SESSION['slimFlash']);
+
     return $renderer->render($response, 'url.phtml', [
         'url' => $url,
         'checks' => $checks,
-        'flash' => $flash->getMessages(),
+        'flash' => $messages,
     ]);
 });
 
-// Проверка сайта
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($pdo, $flash) {
     $urlId = (int) $args['id'];
     $stmt = $pdo->prepare('SELECT name FROM urls WHERE id = ?');
